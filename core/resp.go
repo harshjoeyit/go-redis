@@ -104,3 +104,40 @@ func DecodeOne(data []byte) (any, error) {
 	value, _, err := decodeOne(data)
 	return value, err
 }
+
+// DecodeArrayString decodes the data and returns an array of strings
+func DecodeArrayString(data []byte) ([]string, error) {
+	decoded, err := DecodeOne(data)
+	if err != nil {
+		return nil, err
+	}
+
+	items, ok := decoded.([]any)
+	if !ok {
+		return nil, errors.New("not a array")
+	}
+
+	result := make([]string, len(items))
+
+	for i, item := range items {
+		str, ok := item.(string)
+		if !ok {
+			return result, errors.New("array item not a string")
+		}
+		result[i] = str
+	}
+
+	return result, nil
+}
+
+func Encode(value any, isSimple bool) []byte {
+	switch v := value.(type) {
+	case string:
+		if isSimple {
+			return []byte(fmt.Sprintf("+%s\r\n", v))
+		}
+		return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(v), v))
+	default:
+		return []byte{}
+	}
+}
