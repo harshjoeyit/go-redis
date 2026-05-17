@@ -9,5 +9,6 @@ import (
 // go run main.go starts server
 func main() {
 	fmt.Println("Started go-redis")
-	server.RunSyncTCPServer()
+	// server.RunSyncTCPServer()
+	server.RunAsyncTCPServer()
 }

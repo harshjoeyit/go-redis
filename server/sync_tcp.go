@@ -10,8 +10,6 @@ import (
 	"github.com/harshjoeyit/goredis/core"
 )
 
-var conns int
-
 func RunSyncTCPServer() {
 	addr, err := net.ResolveTCPAddr("tcp", ":7379")
 	if err != nil {
@@ -33,7 +31,7 @@ func RunSyncTCPServer() {
 			continue
 		}
 
-		conns++
+		connClients++
 
 		handleConnection(c)
 	}
@@ -43,15 +41,15 @@ func handleConnection(c net.Conn) {
 	defer c.Close()
 	clientAddr := c.RemoteAddr().String()
 
-	fmt.Printf("client connected: %s, concurrent clients: %d\n", clientAddr, conns)
+	fmt.Printf("client connected: %s, concurrent clients: %d\n", clientAddr, connClients)
 
 	for {
 		// decode command
 		cmd, err := readCommand(c)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				conns--
-				log.Printf("connection closed by client: %s, concurrent clients: %d\n", clientAddr, conns)
+				connClients--
+				log.Printf("connection closed by client: %s, concurrent clients: %d\n", clientAddr, connClients)
 			} else {
 				log.Printf("unexpected error: %v", err)
 			}
@@ -61,7 +59,7 @@ func handleConnection(c net.Conn) {
 	}
 }
 
-func readCommand(c net.Conn) (*core.RedisCmd, error) {
+func readCommand(c io.ReadWriter) (*core.RedisCmd, error) {
 	var buf []byte = make([]byte, 512)
 	n, err := c.Read(buf)
 	if err != nil {
@@ -79,13 +77,13 @@ func readCommand(c net.Conn) (*core.RedisCmd, error) {
 	}, nil
 }
 
-func respond(cmd *core.RedisCmd, c net.Conn) {
+func respond(cmd *core.RedisCmd, c io.ReadWriter) {
 	err := core.EvalAndRespond(cmd, c)
 	if err != nil {
 		respondError(err, c)
 	}
 }
 
-func respondError(err error, c net.Conn) {
+func respondError(err error, c io.ReadWriter) {
 	c.Write([]byte(fmt.Sprintf("-%s\r\n", err)))
 }
