@@ -28,3 +28,9 @@ loop:
 1. `epoll_create1` - Create a new EPoller
 2. `epoll_ctl` - Register file descriptor (fd)
 3. `epoll_wait` - Waits for updates on registered fds
+
+### Benchmarks
+
+```bash
+./redis-benchmark -n 10000 -t ping_mbulk -c 200 -h localhost -p 7379
+```
