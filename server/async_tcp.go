@@ -55,7 +55,7 @@ func RunAsyncTCPServer() {
 			continue
 		}
 
-		log.Println("events ready: ", events[:n])
+		log.Println("events ready: ", n)
 
 		// dispatch - iterrate over returned events
 		for _, e := range events[:n] {
@@ -76,7 +76,7 @@ func RunAsyncTCPServer() {
 				cmd := core.Cmd{FD: int(e.Ident)}
 				rcmd, err := readCommand(cmd)
 				if err != nil {
-					if errors.Is(err, io.EOF) {
+					if errors.Is(err, io.EOF) || err.Error() == "no data" {
 						// close connection and unregister
 						syscall.Close(cmd.FD)
 						registerWithKQ(kq, cmd.FD, false)
@@ -86,6 +86,7 @@ func RunAsyncTCPServer() {
 					} else {
 						log.Printf("unexpected error: %+v", err)
 					}
+					continue
 				}
 
 				// respond to client
@@ -106,5 +107,4 @@ func registerWithKQ(kq, fd int, register bool) {
 	}
 	// canonical to epoll_ctl
 	syscall.Kevent(kq, []syscall.Kevent_t{ke}, []syscall.Kevent_t{}, nil)
-	log.Printf("registered %t fd: %d with kq", register, fd)
 }
