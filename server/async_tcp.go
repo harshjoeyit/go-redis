@@ -9,10 +9,8 @@ import (
 	"github.com/harshjoeyit/goredis/core"
 )
 
-var connClients int
-
 func RunAsyncTCPServer() {
-	maxConnClients := 20000
+	s := core.NewServer()
 
 	// create a kqueue instance - epoll_create1
 	kq, err := syscall.Kqueue()
@@ -46,7 +44,7 @@ func RunAsyncTCPServer() {
 
 	// event loop - epoll_wait
 	for {
-		events := make([]syscall.Kevent_t, maxConnClients)
+		events := make([]syscall.Kevent_t, s.MaxConnClients)
 
 		log.Println("wating for events...")
 		n, err := syscall.Kevent(kq, []syscall.Kevent_t{}, events, nil)
@@ -66,8 +64,8 @@ func RunAsyncTCPServer() {
 					log.Printf("client fd: %d, addr: %+v failed to connect\n", e.Ident, clientSockAddr)
 				}
 
-				connClients++
-				log.Printf("new client connected fd: %d, addr: %+v, connected clients: %d\n", e.Ident, clientSockAddr, connClients)
+				s.IncrConnClients()
+				log.Printf("new client connected fd: %d, addr: %+v, connected clients: %d\n", e.Ident, clientSockAddr, s.ConnClients())
 
 				// register client with kqueue
 				registerWithKQ(kq, clientFD, true)
@@ -81,8 +79,8 @@ func RunAsyncTCPServer() {
 						syscall.Close(cmd.FD)
 						registerWithKQ(kq, cmd.FD, false)
 
-						connClients--
-						log.Printf("connection closed by client: %+v, connected clients: %d\n", e.Ident, connClients)
+						s.DecrConnClients()
+						log.Printf("connection closed by client: %+v, connected clients: %d\n", e.Ident, s.ConnClients())
 					} else {
 						log.Printf("unexpected error: %+v", err)
 					}
@@ -90,7 +88,7 @@ func RunAsyncTCPServer() {
 				}
 
 				// respond to client
-				respond(rcmd, cmd)
+				respond(s, rcmd, cmd)
 			}
 		}
 	}

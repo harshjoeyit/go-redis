@@ -11,6 +11,8 @@ import (
 )
 
 func RunSyncTCPServer() {
+	server := core.NewServer()
+
 	addr, err := net.ResolveTCPAddr("tcp", ":7379")
 	if err != nil {
 		log.Printf("Error resolving TCP address: %v\n", err)
@@ -31,31 +33,31 @@ func RunSyncTCPServer() {
 			continue
 		}
 
-		connClients++
+		server.IncrConnClients()
 
-		handleConnection(c)
+		handleConnection(server, c)
 	}
 }
 
-func handleConnection(c net.Conn) {
+func handleConnection(s *core.Server, c net.Conn) {
 	defer c.Close()
 	clientAddr := c.RemoteAddr().String()
 
-	fmt.Printf("client connected: %s, concurrent clients: %d\n", clientAddr, connClients)
+	fmt.Printf("client connected: %s, concurrent clients: %d\n", clientAddr, s.ConnClients())
 
 	for {
 		// decode command
 		cmd, err := readCommand(c)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				connClients--
-				log.Printf("connection closed by client: %s, concurrent clients: %d\n", clientAddr, connClients)
+				s.DecrConnClients()
+				log.Printf("connection closed by client: %s, concurrent clients: %d\n", clientAddr, s.ConnClients())
 			} else {
 				log.Printf("unexpected error: %v", err)
 			}
 			break
 		}
-		respond(cmd, c)
+		respond(s, cmd, c)
 	}
 }
 
@@ -77,8 +79,8 @@ func readCommand(c io.ReadWriter) (*core.RedisCmd, error) {
 	}, nil
 }
 
-func respond(cmd *core.RedisCmd, c io.ReadWriter) {
-	err := core.EvalAndRespond(cmd, c)
+func respond(s *core.Server, cmd *core.RedisCmd, c io.ReadWriter) {
+	err := s.EvalAndRespond(cmd, c)
 	if err != nil {
 		respondError(err, c)
 	}
